@@ -36,5 +36,7 @@
     position: absolute;
     border-radius: 50%;
     border: 2px solid red;
+    transition: width 0s, height 0s, left 0s, top 0s;
     background: rgba(255, 0, 0, 0.2);
+    transform: translate(-50%, -50%);
 }

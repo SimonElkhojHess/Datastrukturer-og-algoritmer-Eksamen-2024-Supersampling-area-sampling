@@ -1,7 +1,5 @@
 "use strict";
 
-console.log("Hello Me");
-
 let startCell = null;
 let endCell = null;
 
@@ -57,101 +55,135 @@ function setEndCell(event)
 
 function drawCircle()
 {
-
-
-    // Getting the column and row of the start cell and of the end cell.
     const startCol = parseInt(startCell.dataset.col);
     const startRow = parseInt(startCell.dataset.row);
     const endCol = parseInt(endCell.dataset.col);
     const endRow = parseInt(endCell.dataset.row);
 
-    // Test and confirm the cells coordinates.
-    console.log("start position: " + startCol + ", " + startRow + ".");
-    console.log("end position: " + endCol + ", " + endRow + ".");
-
     const cellSize = 25;
 
-    // Top left corner of the start cell the minus 1 is to align it on the screen
-    const startX = startCol * 25 - 1;
-    const startY = startRow * 25 - 1;
+    const startX = startCol * 25;
+    const startY = startRow * 25;
 
-    // Bottom right corner of the end cell the minus 2 is to align it on the screen
-    const endX = (endCol + 1) * 25 - 2;
-    const endY = (endRow + 1) * 25 - 2;
+    const endX = (endCol + 1) * 25;
+    const endY = (endRow + 1) * 25;
 
-    // The center of the circle
     const centerX = (startX + endX) / 2;
     const centerY = (startY + endY) / 2;
 
-    // Getting the diameter and radius of the circle
     const deltaX = endX - startX;
     const deltaY = endY - startY;
-    const diameter = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-    const radius = diameter / 2;
+    const targetDiameter = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    const targetRadius = targetDiameter / 2;
 
-    // Creating the circle and adding the CSS styling
-    const circle = document.createElement("div");
-    circle.classList.add("circle");
-    circle.style.width = `${diameter}px`;
-    circle.style.height = `${diameter}px`;
-    circle.style.left = `${centerX - radius}px`;
-    circle.style.top = `${centerY - radius}px`;
-
-    document.getElementById("map").appendChild(circle);
-
-
-    // Reset startCell and endCell
     startCell = null;
     endCell = null;
 
-    highlightCells(centerX, centerY, radius, cellSize);
+    animateCircleExpansion(centerX, centerY, targetRadius, cellSize);
 }
 
-function highlightCells(centerX, centerY, radius, cellSize) {
-    const map = document.getElementById("map");
-    const cells = map.getElementsByClassName("cell");
-    const samplesPerSide = 5;
+function animateCircleExpansion(centerX, centerY, targetRadius, cellSize)
+{
+    let currentRadius = 0;
 
-    // Loop through each cell
-    for (let cell of cells) {
-        const col = parseInt(cell.dataset.col);
-        const row = parseInt(cell.dataset.row);
+    clearHighlightedCellsAndCircle();
 
-        // calculate cell's top-left coordinates
-        const cellX = col * cellSize;
-        const cellY = row * cellSize;
+    const circle = document.createElement("div");
+    circle.classList.add("circle");
+    document.getElementById("map").appendChild(circle);
 
-        let insideCount = 0;
-        const totalSamples = samplesPerSide * samplesPerSide;
 
-        const sampleSpacing = cellSize / samplesPerSide;
 
-        // Supersampling
-        for ( let i = 0; i < samplesPerSide; i++) {
-            for (let j = 0; j < samplesPerSide; j++) {
-                // Subcell center coordinates
-                const sampleX = cellX + (i + 0.5) * sampleSpacing;
-                const sampleY = cellY + (j + 0.5) * sampleSpacing;
 
-                // Distance from circle center
-                const dx = sampleX - centerX;
-                const dy = sampleY - centerY;
-                const distanceSquared = dx * dx + dy* dy;
+    function animate()
+    {
+        currentRadius += targetRadius / 60;
 
-                if (distanceSquared <= radius * radius) {
-                    insideCount++;
-                }
-            }
+        if (currentRadius > targetRadius)
+        {
+            currentRadius = targetRadius;
         }
-        const coverageRatio = insideCount / totalSamples;
 
-        // Highlight if coverage > 50%
-        if (coverageRatio >= 0.49) {
-            cell.classList.add("highlight");
+        circle.style.width = `${currentRadius * 2}px`;
+        circle.style.height = `${currentRadius * 2}px`;
+        circle.style.left = `${centerX}px`;
+        circle.style.top = `${centerY}px`;
+
+        highlightCells(centerX, centerY, currentRadius, cellSize);
+
+        if (currentRadius < targetRadius)
+        {
+            requestAnimationFrame(animate);
         }
     }
 
+    animate();
+}
+
+function clearHighlightedCellsAndCircle()
+{
+    const highlightedCells = document.querySelectorAll(".cell.highlight");
+    const circle = document.querySelector(".circle");
+
+    if (circle)
+    {
+        circle.parentElement.removeChild(circle);
+    }
+    highlightedCells.forEach(cell => cell.classList.remove("highlight"));
+}
 
 
 
+function highlightCells(centerX, centerY, radius, cellSize)
+{
+    const map = document.getElementById("map");
+    const samplesPerSide = 5;
+
+    const minCol = Math.floor((centerX - radius) / cellSize);
+    const maxCol = Math.ceil((centerX + radius) / cellSize);
+    const minRow = Math.floor((centerY - radius) / cellSize);
+    const maxRow = Math.ceil((centerY + radius) / cellSize);
+
+    for (let col = minCol; col <= maxCol; col++)
+    {
+        for (let row = minRow; row <= maxRow; row++)
+        {
+            if (col < 0 || row < 0) continue;
+
+            const cell = document.querySelector(`.cell[data-col='${col}'][data-row='${row}']`);
+            if (!cell) continue;
+
+            const cellX = col * cellSize;
+            const cellY = row * cellSize;
+
+            let insideCount = 0;
+            const totalSamples = samplesPerSide * samplesPerSide;
+
+            const sampleSpacing = cellSize / samplesPerSide;
+
+            for ( let i = 0; i < samplesPerSide; i++)
+            {
+                for (let j = 0; j < samplesPerSide; j++)
+                {
+                    const sampleX = cellX + (i + 0.5) * sampleSpacing;
+                    const sampleY = cellY + (j + 0.5) * sampleSpacing;
+
+                    const dx = sampleX - centerX;
+                    const dy = sampleY - centerY;
+                    const distanceSquared = dx * dx + dy* dy;
+
+                    if (distanceSquared <= radius * radius)
+                    {
+                        insideCount++;
+                    }
+                }
+            }
+            const coverageRatio = insideCount / totalSamples;
+
+            if (coverageRatio >= 0.5)
+            {
+                cell.classList.add("highlight");
+            }
+        }
+    }
 }
